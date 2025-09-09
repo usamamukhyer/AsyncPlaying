@@ -584,3 +584,74 @@ PARALLEL PROGRAMMING IN .NET (Parallel.For / Parallel.ForEach)
     * I/O-bound → Async/await.
 ================================================================
 */
+
+
+/*
+================================================================
+MAIN THREAD IN .NET APPLICATIONS
+================================================================
+
+1. ASP.NET CORE / CONSOLE APPLICATIONS (SERVER-SIDE)
+---------------------------------------------------
+- A "main thread" exists only at process startup.
+- Responsibilities of the main thread:
+    * Run Program.Main().
+    * Initialize configuration, logging, DI container.
+    * Start the Kestrel web server (ASP.NET Core).
+    * Keep the process alive while the server runs.
+- After startup:
+    * The main thread is essentially idle or just monitoring.
+    * It does NOT handle business logic or HTTP requests.
+- All requests and async methods run on THREADPOOL threads.
+- Each incoming HTTP request is dispatched from Kestrel
+  to a ThreadPool worker thread.
+- Async/await in controllers frees/reuses those ThreadPool threads.
+
+Key Point:
+- In server apps, the main thread is only for initialization
+  and hosting. The real work is done by ThreadPool threads.
+
+---------------------------------------------------
+2. UI APPLICATIONS (WinForms, WPF, MAUI, Xamarin)
+---------------------------------------------------
+- The main thread = the UI thread.
+- Responsibilities of the main/UI thread:
+    * Run the application's message loop (event loop).
+    * Render the interface (draw windows, update controls).
+    * Handle user input events (clicks, typing, gestures).
+- All UI code must run on this thread.
+- If the UI thread is blocked (e.g., Thread.Sleep), the
+  application freezes and shows "Not Responding."
+- Async/await in UI apps:
+    * Frees the UI thread during I/O waits.
+    * Continuations after await are posted back onto the
+      UI thread (via SynchronizationContext).
+    * This keeps UI responsive and safe for updates.
+
+Key Point:
+- In UI apps, the main thread is critical: it drives rendering
+  and input. Async/await is vital to keep it free.
+
+---------------------------------------------------
+3. COMPARISON
+---------------------------------------------------
+- ASP.NET Core / Console:
+    * Main thread: startup only.
+    * Business logic: ThreadPool threads.
+    * Goal: scalability (free threads during I/O).
+- UI apps:
+    * Main thread: UI loop.
+    * Business logic + events: UI thread.
+    * Goal: responsiveness (keep UI free).
+
+================================================================
+SUMMARY
+================================================================
+- The "main thread" role depends on application type:
+    * Server apps → initialization only.
+    * UI apps → event loop + rendering.
+- In both cases, async/await ensures efficient use of threads:
+    * Server: scales to thousands of requests.
+    * UI: keeps interface responsive.
+================================================================
+*/
