@@ -655,3 +655,99 @@ SUMMARY
     * UI: keeps interface responsive.
 ================================================================
 */
+/*
+================================================================
+ASP.NET CORE: TASK.RUN + AWAIT BEHAVIOR
+================================================================
+
+1. REQUEST THREAD (START)
+---------------------------------------------------------------
+- Each incoming HTTP request is handled by a ThreadPool thread.
+  Example: Thread 6 handles your controller action.
+
+- Inside the action, when you hit:
+    await Task.Run(() => HeavyWork());
+
+- What happens:
+    * Thread 6 is the "caller thread".
+    * Task.Run schedules HeavyWork on a NEW ThreadPool thread
+      (e.g., Thread 26).
+    * Thread 6 is FREED back to the pool immediately.
+    * Your async method is PAUSED, waiting for the Task.
+
+---------------------------------------------------------------
+2. TASK.RUN THREAD (WORKER)
+---------------------------------------------------------------
+- HeavyWork runs fully on Thread 26.
+- This thread is NOT freed until HeavyWork completes.
+- While Thread 26 is working, it is blocked/busy and cannot
+  process other requests.
+- Key point: Task.Run is true multithreading, so its worker
+  thread is tied up until completion.
+
+---------------------------------------------------------------
+3. CONTINUATION AFTER AWAIT
+---------------------------------------------------------------
+- When HeavyWork (on Thread 26) completes, the Task is marked
+  as finished.
+- The async method continuation ("code after await") is queued
+  back into the ThreadPool.
+
+- Unlike UI apps (WPF/WinForms), ASP.NET Core does NOT restore
+  the original caller thread (Thread 6).
+- Continuation runs on ANY available ThreadPool thread:
+    * Could be the same thread that finished (26).
+    * Could be another idle worker (e.g., 30).
+    * Could even be Thread 6 again if free.
+
+---------------------------------------------------------------
+4. WHY AWAIT IS IMPORTANT
+---------------------------------------------------------------
+- If you do Task.Run(...) without await:
+    * You start background work on Thread 26.
+    * Your controller action continues immediately and may
+      return a response BEFORE the background work finishes.
+    * Any exception in background work may be lost.
+
+- If you use await Task.Run(...):
+    * Your method is paused.
+    * Caller thread (6) is freed for other requests.
+    * Worker thread (26) runs HeavyWork until done.
+    * Continuation resumes later on some ThreadPool thread.
+    * Guarantees the controller waits for completion.
+
+---------------------------------------------------------------
+5. KEY TAKEAWAYS
+---------------------------------------------------------------
+- Task.Run = schedules work on a new ThreadPool thread.
+- That worker thread is BUSY until the task completes.
+- await = pauses the async method, freeing the caller thread.
+- After await, continuation resumes on any available pool thread
+  (not necessarily the original one).
+- In ASP.NET Core there is no "UI thread" to return to — all work
+  runs on ThreadPool threads.
+
+================================================================
+*/
+//2.Without await
+
+
+//public IActionResult GetSomething()
+//{
+//    Console.WriteLine($"[Caller] Start on Thread {Thread.CurrentThread.ManagedThreadId}");
+
+//    Task.Run(() =>
+//    {
+//        Console.WriteLine($"[Worker] Running on Thread {Thread.CurrentThread.ManagedThreadId}");
+//        Thread.Sleep(2000);
+//        Console.WriteLine($"[Worker] Finished on Thread {Thread.CurrentThread.ManagedThreadId}");
+//    });
+
+//    Console.WriteLine($"[Caller] Immediately returning on Thread {Thread.CurrentThread.ManagedThreadId}");
+
+//    return Ok("Done");
+//}
+
+//[Caller] Start on Thread 12
+//[Worker] Running on Thread 18
+//[Caller] Immediately returning on Thread 12
