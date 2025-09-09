@@ -499,3 +499,88 @@ ASYNC / AWAIT: CONCURRENCY vs MULTITHREADING
 - Use Task.Run / Parallel.For / raw threads for CPU-bound parallelism.
 ================================================================
 */
+/*
+================================================================
+PARALLEL PROGRAMMING IN .NET (Parallel.For / Parallel.ForEach)
+================================================================
+
+1. PURPOSE
+---------------------------------
+- Parallel programming (Task Parallel Library) is designed for
+  CPU-BOUND work (e.g., math, data processing, image manipulation).
+- It tries to maximize CPU usage by splitting work across multiple
+  ThreadPool threads and running them in parallel on multiple cores.
+
+---------------------------------
+2. HOW IT WORKS
+---------------------------------
+- Parallel.For / Parallel.ForEach take a workload (loop/collection)
+  and break it into "chunks".
+- These chunks are scheduled onto ThreadPool threads.
+- By default, the number of active threads ≈ Environment.ProcessorCount
+  (your logical CPU cores).
+- Example: On a 12-core machine, ~12 threads work in parallel,
+  each processing a chunk of iterations.
+- If there are more iterations than threads, the extra work
+  is placed in a QUEUE. When a thread finishes, it takes
+  more work from the queue.
+
+---------------------------------
+3. THREADPOOL BEHAVIOR
+---------------------------------
+- Parallel.For uses ThreadPool threads, not raw OS threads.
+- ThreadPool may create EXTRA threads if:
+    * Many tasks are queued, and
+    * Some threads are blocked (e.g., waiting on I/O).
+- But more threads ≠ more CPU power:
+    * Real parallelism is limited by logical processor count.
+    * Too many threads causes context switching overhead.
+- For CPU-bound work, TPL avoids spawning more threads than cores,
+  because extra threads slow things down.
+
+---------------------------------
+4. WHAT IF WORK IS I/O-BOUND?
+---------------------------------
+- Parallel.ForEach with blocking I/O (e.g., .Result on HttpClient):
+    * Each ThreadPool thread blocks until the response arrives.
+    * Threads are not released like in async/await.
+    * The loop body does not move forward until response comes back.
+    * If many requests > threads, backlog forms, and ThreadPool may
+      create new threads.
+    * This scales poorly and can lead to thread explosion.
+- Async/await should be used instead for I/O-bound work.
+
+---------------------------------
+5. COMPARISON WITH ASYNC/AWAIT
+---------------------------------
+- Parallel.For (CPU-bound):
+    * Threads stay busy doing calculations.
+    * True parallelism across cores.
+    * Max throughput limited by hardware cores.
+    * Best for math-heavy workloads.
+- Async/await (I/O-bound):
+    * Threads are released during waits.
+    * Scales to thousands of concurrent operations.
+    * Best for network, database, and file I/O.
+
+---------------------------------
+6. WHEN TO USE
+---------------------------------
+✅ Use Parallel.For / ForEach when:
+    * The work is CPU-heavy and can be divided into independent parts.
+    * Example: image processing, cryptography, simulations.
+
+🚫 Avoid Parallel.For for I/O-bound operations:
+    * Threads will block and waste resources.
+    * Use async/await instead.
+
+---------------------------------
+7. KEY TAKEAWAY
+---------------------------------
+- Parallel.For/ForEach = CPU parallelism, limited by cores.
+- Async/await = I/O concurrency, scalable beyond threads.
+- Rule of thumb:
+    * CPU-bound → Parallelism (TPL, Parallel.For).
+    * I/O-bound → Async/await.
+================================================================
+*/
