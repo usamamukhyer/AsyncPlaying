@@ -751,3 +751,76 @@ ASP.NET CORE: TASK.RUN + AWAIT BEHAVIOR
 //[Caller] Start on Thread 12
 //[Worker] Running on Thread 18
 //[Caller] Immediately returning on Thread 12
+
+/*
+================================================================
+CONCURRENCY VS PARALLELISM
+================================================================
+
+1. DEFINITIONS
+---------------------------------------------------------------
+- CONCURRENCY:
+  * The ability to handle multiple tasks at once by interleaving
+    progress between them.
+  * Tasks may not run at the exact same time, but the system
+    makes progress on many tasks "concurrently".
+  * Example: One waiter serving many tables by switching between
+    them while waiting for food to cook.
+
+- PARALLELISM:
+  * Executing multiple tasks literally at the SAME TIME on
+    multiple CPU cores/threads.
+  * Example: Multiple waiters each serve one table in parallel.
+
+---------------------------------------------------------------
+2. IN .NET (ASP.NET Core, ThreadPool model)
+---------------------------------------------------------------
+- .NET supports BOTH concurrency and parallelism:
+  * PARALLELISM:
+    - Multiple CPU-bound tasks can run at the same time across
+      multiple logical processors (cores).
+    - Example: Parallel.For for heavy math/image processing.
+  * CONCURRENCY:
+    - Async/await with I/O frees threads back to the ThreadPool.
+    - Thousands of I/O requests (DB/HTTP) can be in flight without
+      consuming thousands of threads.
+    - Example: 1000 HTTP calls using HttpClient + async/await.
+
+---------------------------------------------------------------
+3. IN NODE.JS (NestJS, Event Loop model)
+---------------------------------------------------------------
+- JavaScript code itself runs on a SINGLE THREAD (the event loop).
+- Node.js achieves massive CONCURRENCY:
+  * Event loop never blocks on I/O.
+  * While one request waits on DB, another is processed.
+  * One thread can handle 10,000+ concurrent requests.
+- PARALLELISM:
+  * Limited to libuv’s thread pool (default 4 threads).
+  * Used internally for I/O tasks like file system, crypto, DNS.
+  * User code (JS) itself is NOT parallel.
+
+---------------------------------------------------------------
+4. FORMAL TAKEAWAY
+---------------------------------------------------------------
+- Concurrency = managing multiple tasks and making progress
+  on all, even if not simultaneous.
+- Parallelism = actual simultaneous execution on multiple cores.
+- .NET:
+  * Concurrency (async I/O) + Parallelism (multi-core threads).
+- Node.js / NestJS:
+  * Concurrency (event loop, async I/O).
+  * Limited parallelism (libuv pool for I/O only).
+
+================================================================
+SUMMARY
+================================================================
+- Concurrency ≠ Parallelism.
+- Concurrency = many things happening "at once" (conceptually).
+- Parallelism = literally multiple things running at the same
+  instant in hardware.
+- Both models aim for high throughput, but they use different
+  mechanisms:
+  * .NET uses ThreadPool + async/await.
+  * Node.js uses Event Loop + async I/O (libuv).
+================================================================
+*/
